@@ -12,14 +12,24 @@ import urllib
 import urllib3
 import requests
 from bs4 import BeautifulSoup
-from pandas import DataFrame, read_csv
+from pandas import DataFrame, read_csv, read_pickle
+import numpy as np
+from os.path import isfile
 
 _URL_API = "https://api.genius.com/" # GENIUS API URL
 _URL_ARTIST = "artists/"
 _ENDPOINT_ARTIST_SONGS = "/songs"
 _TOKEN_GENIUS_API = "CATTyVT506krN0vbogZTybp72Ciqg7fFw8Ua9DnXeIsarXB8TX2hGY-EKtZjFcO_"
+_NOMBRE_COL_IDS = "ID_CANCION"
+_NOMBRE_COL_LYR_URL = "URL_LYRICAS"
+_NOMBRE_COL_TIT = "TITULO_CANCION"
+_NOMBRE_COL_LETRA = "LETRA"
+_DF_CANCIONES = "canciones.pkl"
+_URI_DF_CANCIONES = "./data/" + _DF_CANCIONES
+_DF_LETRAS = "letras.pkl"
+_URI_DF_LETRAS = "./data/"+ _DF_LETRAS
 
-"""Descarga líricas de https://genius.com/.
+"""Descarga metadatos de canciones de https://genius.com/.
 
     Retrieves rows pertaining to the given keys from the Table instance
 
@@ -46,15 +56,22 @@ _TOKEN_GENIUS_API = "CATTyVT506krN0vbogZTybp72Ciqg7fFw8Ua9DnXeIsarXB8TX2hGY-EKtZ
     Raises:
         IOError: An error occurred accessing the smalltable.
     """
-def scrape_lyrics(artists_path="./data/Artistas_IDs.csv"):
+def get_metadatos_canciones(artists_path="./data/Artistas_IDs.csv"):
 	art_df = read_csv(artists_path, sep=";")
 	auth_headers = {"Authorization": "Bearer " + _TOKEN_GENIUS_API}
+
+	if isfile(_URI_DF_CANCIONES): # Si ya existe la información, se evita crearlo de nuevo
+		print("Ya se descargó la metainformación anteriormente. Saltando este paso.")
+		return
+
+	ids_canciones = [] # Lista de ids de las canciones
+	urls_lyr_can = [] # Lista de URLs de las líricas de las canciones
+	titulos = [] # Lista de los titulos de las canciones
 
 	for _, fila in art_df.iterrows():
 		artista = fila["ARTISTA"]
 		id = fila["ID"]
-		print(f"-------------------------------------------------------\nSe va a buscar las canciones del artista {artista} ({id}):")
-		num_canciones = 1
+		num_canciones = 0
 		num_pag = 1
 		seguir_buscando = True
 		get_songs_string = _URL_API + _URL_ARTIST + str(id) + _ENDPOINT_ARTIST_SONGS
@@ -69,16 +86,58 @@ def scrape_lyrics(artists_path="./data/Artistas_IDs.csv"):
 					num_pag = response.json()["response"]["next_page"] # Coge el id de la siguiente página
 				else:
 					raise requests.exceptions.RequestException()
+
 			except requests.exceptions.RequestException:
 				raise requests.exceptions.RequestException("Ha ocurrido un error al conectar con la API de https//:genius.com")
 
+
 			for cancion in canciones:
+				ids_canciones.append(cancion["id"])
+				urls_lyr_can.append(cancion["url"])
+
 				titulo = cancion["full_title"]
-				print(f"{num_canciones}.- {titulo}")
+				titulos.append(titulo)
 				num_canciones += 1
+		print(f"-------------------------------------------------------\nDescargada la metainformación de las canciones de \"{artista}\" ({num_canciones}).")
+
+	can_df = DataFrame(data=np.array([ids_canciones,urls_lyr_can, titulos]).T, columns=[_NOMBRE_COL_IDS, _NOMBRE_COL_LYR_URL, _NOMBRE_COL_TIT])
+	can_df = can_df.groupby([_NOMBRE_COL_IDS], as_index=False).first() # Conseguimos las canciones únicas (por si hay repetidas)
+
+	can_df.to_pickle(_URI_DF_CANCIONES)
+
+def get_liricas():
+
+	letras_df = read_pickle(_URI_DF_CANCIONES)
+
+	letras_df[_NOMBRE_COL_LETRA] = None
+
+	letras_error = 0
+	for _, row in letras_df.iterrows():
+		try:
+
+			page = requests.get(row[_NOMBRE_COL_LYR_URL])
+		except requests.exceptions.RequestException:
+			raise requests.exceptions.RequestException(f"Ha ocurrido un error al descargar la lírica de la canción \"{row[_NOMBRE_COL_TIT]}\"")
+
+		html = BeautifulSoup(page.text, "html.parser")  # Extract the page's HTML as a string
+		# Scrape the song lyrics from the HTML
 
 
-	pass
+		lyrics = html.find("div", class_="lyrics")
+
+		if lyrics is not None:
+			lyrics = lyrics.get_text()
+		else:
+			letras_error+=1
+
+	total_canciones = letras_df.shape[0]
+	letras_desc = total_canciones - letras_error
+
+	print(f"-------------------------------------------------------\nSe han podido descargas las líricas de {letras_desc}/{total_canciones} canciones...")
+
+
+	letras_df.to_pickle(_URI_DF_LETRAS)
 
 if __name__ == '__main__':
-	scrape_lyrics()
+	get_metadatos_canciones()
+	get_liricas()
