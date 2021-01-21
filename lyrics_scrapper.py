@@ -13,6 +13,7 @@ from pandas import DataFrame, read_csv, read_pickle
 import numpy as np
 from os.path import isfile, exists, isdir
 import os
+from time import sleep
 
 _URL_API = "https://api.genius.com/" # GENIUS API URL
 _URL_ARTIST = "artists/"
@@ -117,8 +118,10 @@ def get_liricas():
 	letras_df = read_pickle(_URI_DF_CANCIONES)
 	letras_df.sort_values(by=_NOMBRE_COL_ART)
 
+	artistas = list(letras_df[_NOMBRE_COL_ART].unique())
+	artistas.sort()
 
-	for artista in letras_df[_NOMBRE_COL_ART].unique():
+	for artista in artistas:
 
 		print(f"Se va a proceder a descargar las letras de {artista}")
 		letras_error = 0
@@ -137,7 +140,7 @@ def get_liricas():
 		ids_can = [] # Lista que contendrá los ids de las canciones
 
 		n_can = 0
-		print(f"{n_can}/{total_canciones} de {artista} descargadas...")
+		print(f"{n_can}/{total_canciones} de {artista} descargadas...", end="")
 		for _, row in canart_df.iterrows():
 
 			try:
@@ -150,13 +153,21 @@ def get_liricas():
 			# Scrape the song lyrics from the HTML
 			lyrics = html.find("div", class_="lyrics")
 
-			if lyrics is not None:
-				letras.append(lyrics.get_text())
-				ids_can.append(row[_NOMBRE_COL_IDS])
-				n_can += 1
-				print(f"{n_can}/{total_canciones} de {artista} descargadas...")
-			else:
+			if lyrics is None:
+				lyrics = html.find("div", id="lyrics")
+
+			if lyrics is None:
 				letras_error+=1
+				# print(f"No se ha podido descargar la cancion {row[_NOMBRE_COL_TIT]} de {row[_NOMBRE_COL_ART]} [{row[_NOMBRE_COL_LYR_URL]}]...")
+				continue
+
+			letras.append(lyrics.get_text())
+			ids_can.append(row[_NOMBRE_COL_IDS])
+			n_can += 1
+			print(f"\r{n_can}/{total_canciones} de {artista} descargadas...", end="")
+
+		print("COMPLETADO")
+
 
 		# Se guarda el df con todas las letras descargadas
 		DataFrame(data=np.array([ids_can, letras]).T,
