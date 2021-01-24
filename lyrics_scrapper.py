@@ -5,7 +5,9 @@ modelo generador.
 
   Typical usage example:
 
-  scrape_lyrics(path)
+  get_metadatos_canciones(artists_path="./data/Artistas_IDs.csv")
+  get_liricas()
+
 """
 import requests
 from bs4 import BeautifulSoup
@@ -34,30 +36,18 @@ _URI_DF_LETRAS = _DIR_DATA + _DF_LETRAS
 
 """Descarga metadatos de canciones de https://genius.com/.
 
-    Retrieves rows pertaining to the given keys from the Table instance
+    Usando el id de cada artista. Consigue las URLs de líricas de todas las canciones que guarda en un df 
+    junto al nombre del artista, de la canción y el id de ésta. El df es guardado como "canciones.pkl en una carpeta 
+    llamada "data".
 
     Args:
-        table_handle: An open smalltable.Table instance.
-        keys: A sequence of strings representing the key of each table
-          row to fetch.  String keys will be UTF-8 encoded.
-        require_all_keys: Optional; If require_all_keys is True only
-          rows with values set for all keys will be returned.
+        artist_path: La dirección URI del archivo CSV que contiene las parejas de <artista - ID de artista (En genius)> 
 
     Returns:
-        A dict mapping keys to the corresponding table row data
-        fetched. Each row is represented as a tuple of strings. For
-        example:
-
-        {b'Serak': ('Rigel VII', 'Preparer'),
-         b'Zim': ('Irk', 'Invader'),
-         b'Lrrr': ('Omicron Persei 8', 'Emperor')}
-
-        Returned keys are always bytes.  If a key from the keys argument is
-        missing from the dictionary, then that row was not found in the
-        table (and require_all_keys must have been False).
+        None.
 
     Raises:
-        IOError: An error occurred accessing the smalltable.
+        RequestException: Un error al recuperar los datos de la API de Genius.
     """
 def get_metadatos_canciones(artists_path="./data/Artistas_IDs.csv"):
 	art_df = read_csv(artists_path, sep=";")
@@ -109,6 +99,22 @@ def get_metadatos_canciones(artists_path="./data/Artistas_IDs.csv"):
 
 	can_df.to_pickle(_URI_DF_CANCIONES)
 
+
+"""Descarga letras de canciones de https://genius.com/.
+
+    Usa el DataFrame creado anteriormente con la función 'get_metadatos_canciones'. Por cada artista crea un DataFrame
+    que contenga la letra de la canción junto a su ID. Estos Dataframes se guardan en una carpeta 'letras' dentro de 
+    la carpeta de datos.
+
+    Args:
+        None 
+
+    Returns:
+        None.
+
+    Raises:
+        RequestException: Un error al recuperar las líricas.
+    """
 def get_liricas():
 
 	if not exists(_URI_LETRAS):
