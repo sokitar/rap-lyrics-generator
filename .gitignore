@@ -1,2 +1,3 @@
-sandbox.ipynb
 .vscode/settings.json
+.rap_lir_gen_env
+data/letras_raw

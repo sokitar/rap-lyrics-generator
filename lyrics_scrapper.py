@@ -16,6 +16,7 @@ import numpy as np
 from os.path import isfile, exists, isdir
 import os
 from time import sleep
+import re
 
 _URL_API = "https://api.genius.com/" # GENIUS API URL
 _URL_ARTIST = "artists/"
@@ -28,7 +29,7 @@ _NOMBRE_COL_ART = "ARTISTA"
 _NOMBRE_COL_LETRA = "LETRA"
 _DF_CANCIONES = "canciones.pkl"
 _DIR_DATA = "./data/"
-_DIR_LETRAS = "letras/"
+_DIR_LETRAS = "letras_raw/"
 _URI_DF_CANCIONES = _DIR_DATA + _DF_CANCIONES
 _URI_LETRAS = _DIR_DATA + _DIR_LETRAS
 _DF_LETRAS = "letras.pkl"
@@ -159,15 +160,20 @@ def get_liricas():
 			# Scrape the song lyrics from the HTML
 			lyrics = html.find("div", class_="lyrics")
 
-			if lyrics is None:
-				lyrics = html.find("div", id="lyrics")
+			# Scrape the song lyrics from the HTML
+			lyrics = html.find("div", class_="lyrics")
 
 			if lyrics is None:
-				letras_error+=1
-				# print(f"No se ha podido descargar la cancion {row[_NOMBRE_COL_TIT]} de {row[_NOMBRE_COL_ART]} [{row[_NOMBRE_COL_LYR_URL]}]...")
-				continue
+				lyrics = html.find_all("div", class_=re.compile("^Lyrics__Container"))
+				if lyrics is None:
+					letras_error+=1
+					# print(f"No se ha podido descargar la cancion {row[_NOMBRE_COL_TIT]} de {row[_NOMBRE_COL_ART]} [{row[_NOMBRE_COL_LYR_URL]}]...")
+					continue
+				texto = "\n".join([div.get_text() for div in lyrics])
+			else:
+				texto = lyrics.get_text()
 
-			letras.append(lyrics.get_text())
+			letras.append(texto)
 			ids_can.append(row[_NOMBRE_COL_IDS])
 			n_can += 1
 			print(f"\r{n_can}/{total_canciones} de {artista} descargadas...", end="")
@@ -176,10 +182,7 @@ def get_liricas():
 
 
 		# Se guarda el df con todas las letras descargadas
-		DataFrame(data=np.array([ids_can, letras]).T,
-		          columns=[_NOMBRE_COL_IDS, _NOMBRE_COL_LETRA]).to_pickle(_URI_LETRAS_ARTISTA)
-
-		letras_desc = total_canciones - letras_error
+		DataFrame(data=np.array([ids_can, letras]).T, columns=[_NOMBRE_COL_IDS, _NOMBRE_COL_LETRA]).to_pickle(_URI_LETRAS_ARTISTA)
 
 		print(f"-------------------------------------------------------")
 
