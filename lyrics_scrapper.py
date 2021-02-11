@@ -98,7 +98,7 @@ def get_metadatos_canciones(artists_path="./data/Artistas_IDs.csv"):
 	can_df = DataFrame(data=np.array([ids_canciones,urls_lyr_can, titulos, artistas]).T, columns=[_NOMBRE_COL_IDS, _NOMBRE_COL_LYR_URL, _NOMBRE_COL_TIT, _NOMBRE_COL_ART])
 	can_df = can_df.groupby([_NOMBRE_COL_IDS], as_index=False).first() # Conseguimos las canciones únicas (por si hay repetidas)
 
-	can_df.to_pickle(_URI_DF_CANCIONES)
+	can_df.to_pickle(_URI_DF_CANCIONES, protocol = 4)
 
 
 """Descarga letras de canciones de https://genius.com/.
@@ -182,7 +182,7 @@ def get_liricas():
 
 
 		# Se guarda el df con todas las letras descargadas
-		DataFrame(data=np.array([ids_can, letras]).T, columns=[_NOMBRE_COL_IDS, _NOMBRE_COL_LETRA]).to_pickle(_URI_LETRAS_ARTISTA)
+		DataFrame(data=np.array([ids_can, letras]).T, columns=[_NOMBRE_COL_IDS, _NOMBRE_COL_LETRA]).to_pickle(_URI_LETRAS_ARTISTA, protocol = 4)
 
 		print(f"-------------------------------------------------------")
 
